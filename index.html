@@ -1,0 +1,1260 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Teacher Calculator">
+  <meta name="theme-color" content="#121212">
+  <meta name="description" content="آلة حاسبة ذكية لمساعدة الأستاذ في جمع نقاط الامتحانات">
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icon-192.png">
+  <title>مصحح الامتحانات</title>
+  <script src="lib/chart.umd.min.js"></script>
+<script src="lib/jspdf.umd.min.js"></script>
+<script src="lib/html2canvas.min.js"></script>  
+  <style>
+    :root {
+      --safe-area-top: env(safe-area-inset-top, 0px);
+      --safe-area-bottom: env(safe-area-inset-bottom, 0px);
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Tahoma, sans-serif;
+      background-color: #121212;
+      color: #ffffff;
+      height: 100vh;
+      height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      padding-top: var(--safe-area-top);
+      padding-bottom: var(--safe-area-bottom);
+    }
+
+    .tab-nav {
+      display: flex;
+      background-color: #1e1e1e;
+      border-bottom: 2px solid #333;
+      flex-shrink: 0;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .tab-nav button {
+      flex: 1 0 auto;
+      min-width: 70px;
+      padding: 0.9rem 0.5rem;
+      background: transparent;
+      border: none;
+      color: #b3b3b3;
+      font-size: 0.85rem;
+      font-weight: bold;
+      cursor: pointer;
+      transition: 0.2s;
+      border-bottom: 3px solid transparent;
+      font-family: inherit;
+      white-space: nowrap;
+      outline: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .tab-nav button.active {
+      color: #64B5F6;
+      border-bottom-color: #64B5F6;
+    }
+
+    .main-container {
+      flex: 1;
+      overflow-y: auto;
+      overflow-x: hidden;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .tab-content {
+      display: none;
+      flex: 1;
+      flex-direction: column;
+    }
+
+    .tab-content.active {
+      display: flex;
+    }
+
+    .display-card {
+      background-color: #2c2c2c;
+      border-radius: 16px;
+      padding: 16px;
+      margin-bottom: 12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+      flex-shrink: 0;
+    }
+
+    .total-row {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      flex-wrap: wrap;
+    }
+
+    .total-label {
+      font-size: 1rem;
+      color: #b3b3b3;
+    }
+
+    .total-value {
+      font-size: 2.4rem;
+      font-weight: bold;
+      color: #64B5F6;
+      direction: ltr;
+      text-align: right;
+      flex: 1;
+      margin: 0 8px;
+      font-variant-numeric: tabular-nums;
+      letter-spacing: 1px;
+    }
+
+    .progress-bar-container {
+      width: 100%;
+      height: 8px;
+      background-color: #1e1e1e;
+      border-radius: 4px;
+      margin: 10px 0;
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      width: 0%;
+      background-color: #64B5F6;
+      border-radius: 4px;
+      transition: width 0.2s, background-color 0.3s;
+    }
+
+    .info-row {
+      display: flex;
+      justify-content: space-between;
+      color: #b3b3b3;
+      font-size: 0.8rem;
+      margin-top: 6px;
+    }
+
+    .calc-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      grid-template-rows: repeat(5, 1fr);
+      gap: 6px;
+      flex: 1;
+      margin-bottom: 10px;
+    }
+
+    .calc-grid button {
+      background-color: #2c2c2c;
+      border: none;
+      color: #ffffff;
+      font-size: 1.1rem;
+      font-weight: 600;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: background-color 0.1s, transform 0.1s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0.4rem;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+      font-family: inherit;
+      outline: none;
+      -webkit-tap-highlight-color: transparent;
+      min-height: 48px;
+    }
+
+    .calc-grid button:active {
+      background-color: #3a3a3a;
+      transform: scale(0.95);
+    }
+
+    .control-buttons {
+      display: flex;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+
+    .control-buttons button {
+      flex: 1;
+      padding: 0.8rem;
+      background-color: #2c2c2c;
+      border: none;
+      color: #ffffff;
+      font-size: 0.95rem;
+      font-weight: bold;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: 0.2s;
+      font-family: inherit;
+      outline: none;
+      -webkit-tap-highlight-color: transparent;
+      min-height: 48px;
+    }
+
+    .control-buttons button.undo {
+      background-color: #424242;
+    }
+
+    .control-buttons button.reset {
+      background-color: #b71c1c;
+      color: #ffeb3b;
+    }
+
+    .control-buttons button.save {
+      background-color: #0d47a1;
+      color: #64B5F6;
+    }
+
+    .control-buttons button:active {
+      opacity: 0.8;
+    }
+
+    .sort-btns {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 10px;
+    }
+
+    .sort-btns button {
+      flex: 1;
+      padding: 0.5rem;
+      background-color: #2c2c2c;
+      border: 1px solid #444;
+      color: #ccc;
+      border-radius: 8px;
+      font-weight: bold;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 0.8rem;
+      outline: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .sort-btns button.active-sort {
+      background-color: #64B5F6;
+      color: #000;
+      border-color: #64B5F6;
+    }
+
+    .student-list {
+      flex: 1;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .student-card {
+      background-color: #2c2c2c;
+      border-radius: 10px;
+      padding: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+    }
+
+    .student-info {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      flex: 1;
+    }
+
+    .student-name {
+      font-weight: bold;
+      font-size: 1rem;
+    }
+
+    .student-date {
+      font-size: 0.7rem;
+      color: #aaa;
+    }
+
+    .student-score {
+      font-size: 1.2rem;
+      font-weight: bold;
+      color: #64B5F6;
+      margin: 0 8px;
+    }
+
+    .delete-btn {
+      background: none;
+      border: none;
+      color: #f44336;
+      font-size: 1.3rem;
+      cursor: pointer;
+      padding: 8px;
+      border-radius: 50%;
+      min-width: 44px;
+      min-height: 44px;
+      outline: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .export-buttons {
+      display: flex;
+      gap: 8px;
+      margin-top: 10px;
+      flex-wrap: wrap;
+    }
+
+    .export-pdf-btn, .export-stats-btn, .danger-btn, .warning-btn {
+      flex: 1;
+      min-width: 120px;
+      padding: 0.7rem;
+      background: transparent;
+      border: 2px solid #64B5F6;
+      color: #64B5F6;
+      border-radius: 8px;
+      font-weight: bold;
+      cursor: pointer;
+      font-size: 0.85rem;
+      font-family: inherit;
+      outline: none;
+      -webkit-tap-highlight-color: transparent;
+      min-height: 44px;
+    }
+
+    .export-stats-btn { border-color: #4CAF50; color: #4CAF50; }
+    .danger-btn { border-color: #f44336; color: #f44336; }
+    .warning-btn { border-color: #FF9800; color: #FF9800; }
+
+    .export-pdf-btn:active { background-color: #64B5F6; color: #000; }
+    .export-stats-btn:active { background-color: #4CAF50; color: #000; }
+    .danger-btn:active { background-color: #f44336; color: #fff; }
+    .warning-btn:active { background-color: #FF9800; color: #000; }
+
+    .chart-container {
+      width: 100%;
+      height: 250px;
+      margin: 8px 0 12px;
+    }
+
+    .stats-overview {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .stat-box {
+      background-color: #2c2c2c;
+      border-radius: 10px;
+      padding: 12px;
+      text-align: center;
+    }
+
+    .stat-box .stat-value {
+      font-size: 1.5rem;
+      font-weight: bold;
+      color: #64B5F6;
+    }
+
+    .stat-box .stat-label {
+      font-size: 0.75rem;
+      color: #aaa;
+      margin-top: 3px;
+    }
+
+    .summary-card {
+      background-color: #2c2c2c;
+      border-radius: 12px;
+      padding: 12px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+
+    .category-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.85rem;
+    }
+
+    .color-box {
+      width: 16px;
+      height: 16px;
+      border-radius: 4px;
+      flex-shrink: 0;
+    }
+
+    .cat-label { flex: 1; }
+    .cat-count { font-weight: bold; }
+
+    .range-table {
+      width: 100%;
+      background-color: #2c2c2c;
+      border-radius: 10px;
+      padding: 10px;
+      margin-top: 8px;
+      margin-bottom: 10px;
+      overflow-x: auto;
+    }
+
+    .range-table table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.8rem;
+    }
+
+    .range-table th, .range-table td {
+      padding: 6px;
+      text-align: center;
+      border-bottom: 1px solid #444;
+    }
+
+    .range-table th {
+      color: #64B5F6;
+      font-weight: bold;
+    }
+
+    .settings-panel {
+      background-color: #1e1e1e;
+      padding: 16px;
+      border-radius: 12px;
+      margin-bottom: 12px;
+      display: none;
+    }
+
+    .settings-panel.show { display: block; }
+
+    .settings-panel h3 {
+      color: #64B5F6;
+      margin-bottom: 14px;
+      font-size: 1.2rem;
+    }
+
+    .input-group {
+      margin-bottom: 10px;
+    }
+
+    .input-group label {
+      display: block;
+      margin-bottom: 4px;
+      color: #ccc;
+      font-size: 0.9rem;
+    }
+
+    .input-group input, .input-group select {
+      width: 100%;
+      padding: 10px;
+      background-color: #2c2c2c;
+      border: 1px solid #444;
+      border-radius: 8px;
+      color: #fff;
+      font-family: inherit;
+      font-size: 0.95rem;
+      outline: none;
+      -webkit-appearance: none;
+    }
+
+    .max-slider {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .max-slider input[type="range"] {
+      flex: 1;
+      height: 6px;
+      -webkit-appearance: none;
+      background: #444;
+      border-radius: 3px;
+      outline: none;
+    }
+
+    .max-slider input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: #64B5F6;
+      cursor: pointer;
+    }
+
+    .max-value {
+      font-size: 1.3rem;
+      font-weight: bold;
+      color: #64B5F6;
+      width: 35px;
+      text-align: center;
+    }
+
+    .save-settings-btn {
+      margin-top: 10px;
+      width: 100%;
+      padding: 12px;
+      background-color: #64B5F6;
+      color: #000;
+      border: none;
+      border-radius: 8px;
+      font-weight: bold;
+      font-size: 1rem;
+      cursor: pointer;
+      font-family: inherit;
+      outline: none;
+      -webkit-tap-highlight-color: transparent;
+      min-height: 48px;
+    }
+
+    .settings-toggle {
+      background: none;
+      border: none;
+      color: #64B5F6;
+      font-size: 1.3rem;
+      cursor: pointer;
+      padding: 0.5rem;
+      outline: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; width: 100%; height: 100%;
+      background-color: rgba(0,0,0,0.75);
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      padding: 20px;
+    }
+
+    .modal.active { display: flex; }
+
+    .modal-content {
+      background-color: #1e1e1e;
+      padding: 20px;
+      border-radius: 16px;
+      width: 100%;
+      max-width: 380px;
+      color: #fff;
+      max-height: 80vh;
+      overflow-y: auto;
+    }
+
+    .modal-content h3 {
+      margin-bottom: 14px;
+      color: #64B5F6;
+      font-size: 1.1rem;
+    }
+
+    .modal-buttons {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      margin-top: 18px;
+      flex-wrap: wrap;
+    }
+
+    .modal-buttons button {
+      padding: 10px 18px;
+      border: none;
+      border-radius: 8px;
+      font-weight: bold;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 0.9rem;
+      outline: none;
+      -webkit-tap-highlight-color: transparent;
+      min-height: 44px;
+    }
+
+    .btn-cancel { background-color: #424242; color: #fff; }
+    .btn-save { background-color: #64B5F6; color: #000; }
+    .btn-danger { background-color: #f44336; color: #fff; }
+
+    .loading-overlay {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; width: 100%; height: 100%;
+      background-color: rgba(0,0,0,0.85);
+      align-items: center;
+      justify-content: center;
+      z-index: 2000;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .loading-overlay.active { display: flex; }
+
+    .spinner {
+      width: 44px;
+      height: 44px;
+      border: 4px solid #333;
+      border-top: 4px solid #64B5F6;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    .data-info {
+      background-color: #2c2c2c;
+      border-radius: 8px;
+      padding: 10px;
+      margin-bottom: 10px;
+      font-size: 0.85rem;
+      color: #aaa;
+    }
+
+    .data-info span {
+      color: #64B5F6;
+      font-weight: bold;
+    }
+
+    #pdfPreviewArea {
+      position: absolute;
+      right: -9999px;
+      top: 0;
+      width: 794px;
+      background: white;
+      color: black;
+      font-family: 'Segoe UI', Tahoma, sans-serif;
+      direction: rtl;
+      padding: 40px;
+    }
+
+    #pdfPreviewArea table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+    }
+
+    #pdfPreviewArea th {
+      background-color: #2980b9;
+      color: white;
+      padding: 10px;
+      text-align: center;
+      border: 1px solid #ddd;
+      font-size: 14px;
+    }
+
+    #pdfPreviewArea td {
+      padding: 8px;
+      text-align: center;
+      border: 1px solid #ddd;
+      font-size: 13px;
+    }
+
+    #pdfPreviewArea .header {
+      text-align: center;
+      font-size: 18px;
+      font-weight: bold;
+      margin-bottom: 5px;
+    }
+
+    #pdfPreviewArea .subheader {
+      text-align: center;
+      font-size: 14px;
+      margin-bottom: 3px;
+    }
+
+    #pdfPreviewArea .title {
+      text-align: center;
+      font-size: 20px;
+      font-weight: bold;
+      margin: 15px 0 25px;
+    }
+
+    #pdfPreviewArea .section-title {
+      font-size: 16px;
+      font-weight: bold;
+      color: #2980b9;
+      margin: 20px 0 10px;
+      text-align: right;
+    }
+
+    #pdfPreviewArea .stats-table td:first-child {
+      text-align: right;
+      font-weight: bold;
+      width: 60%;
+    }
+
+    #pdfPreviewArea .stats-table td:last-child {
+      text-align: center;
+      width: 40%;
+    }
+
+    #pdfPreviewArea .chart-img-container {
+      text-align: center;
+      margin: 15px 0;
+    }
+
+    #pdfPreviewArea .chart-img-container img {
+      max-width: 100%;
+      height: auto;
+    }
+
+    .empty-state {
+      text-align: center;
+      color: #aaa;
+      padding: 30px 20px;
+      font-size: 0.95rem;
+    }
+
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #444; border-radius: 2px; }
+
+    @media (max-width: 360px) {
+      .total-value { font-size: 2rem; }
+      .calc-grid button { font-size: 1rem; }
+      .export-buttons { flex-direction: column; }
+    }
+
+    @media (min-width: 768px) {
+      .main-container { padding: 20px; max-width: 800px; margin: 0 auto; }
+      .calc-grid { max-width: 500px; margin: 0 auto 10px; }
+    }
+
+    .tab-content, .student-list, .summary-card { direction: rtl; }
+  </style>
+</head>
+<body>
+
+  <div class="loading-overlay" id="loadingOverlay">
+    <div class="spinner"></div>
+    <p style="color:#fff;" id="loadingText">جاري إنشاء ملف PDF...</p>
+  </div>
+
+  <div id="pdfPreviewArea"></div>
+
+  <div class="tab-nav">
+    <button class="active" data-tab="calculator">🧮 الحاسبة</button>
+    <button data-tab="students">👥 الطلاب</button>
+    <button data-tab="stats">📊 الإحصائيات</button>
+    <button data-tab="data">💾 البيانات</button>
+    <button class="settings-toggle" id="settingsToggle" title="الإعدادات">⚙️</button>
+  </div>
+
+  <div class="settings-panel" id="settingsPanel">
+    <h3>معلومات الأستاذ والإعدادات</h3>
+    <div class="input-group">
+      <label>اسم الأستاذ</label>
+      <input type="text" id="teacherNameInput" placeholder="أدخل الاسم">
+    </div>
+    <div class="input-group">
+      <label>المادة</label>
+      <input type="text" id="subjectInput" placeholder="مثلاً: الرياضيات">
+    </div>
+    <div class="input-group">
+      <label>المؤسسة</label>
+      <input type="text" id="institutionInput" placeholder="اسم المدرسة أو المؤسسة">
+    </div>
+    <div class="input-group">
+      <label>السنة الدراسية</label>
+      <input type="text" id="academicYearInput" placeholder="2025-2026">
+    </div>
+    <div class="input-group">
+      <label>الفصل الدراسي</label>
+      <select id="semesterSelect">
+        <option value="1">الفصل الأول</option>
+        <option value="2">الفصل الثاني</option>
+        <option value="3">الفصل الثالث</option>
+      </select>
+    </div>
+    <div class="input-group">
+      <label>العلامة الكاملة</label>
+      <div class="max-slider">
+        <input type="range" id="maxScoreSlider" min="5" max="40" value="20" step="1">
+        <span class="max-value" id="maxScoreValue">20</span>
+      </div>
+    </div>
+    <button class="save-settings-btn" id="saveSettingsBtn">حفظ الإعدادات</button>
+  </div>
+
+  <div class="main-container">
+    <div class="tab-content active" id="tab-calculator">
+      <div class="display-card">
+        <div class="total-row">
+          <span class="total-label">المجموع</span>
+          <span class="total-value" id="totalDisplay">0.00</span>
+        </div>
+        <div class="progress-bar-container">
+          <div class="progress-fill" id="progressFill" style="width: 0%; background-color: #64B5F6;"></div>
+        </div>
+        <div class="info-row">
+          <span id="lastAddedDisplay">آخر نقطة: --</span>
+          <span id="operationCountDisplay">العمليات: 0</span>
+        </div>
+      </div>
+      <div class="calc-grid" id="calcGrid"></div>
+      <div class="control-buttons">
+        <button class="undo" id="undoBtn">↩ تراجع</button>
+        <button class="reset" id="resetBtn">🔄 تصفير</button>
+        <button class="save" id="saveBtn">💾 حفظ</button>
+      </div>
+    </div>
+
+    <div class="tab-content" id="tab-students">
+      <div class="sort-btns">
+        <button class="active-sort" data-sort="date">📅 التاريخ</button>
+        <button data-sort="score">📊 النقطة</button>
+        <button data-sort="name">🔤 الاسم</button>
+      </div>
+      <div class="student-list" id="studentList"></div>
+      <div class="export-buttons">
+        <button class="export-pdf-btn" id="exportPdfBtn">📄 تصدير PDF</button>
+      </div>
+    </div>
+
+    <div class="tab-content" id="tab-stats">
+      <div class="stats-overview" id="statsOverview"></div>
+      <div class="chart-container">
+        <canvas id="barChart"></canvas>
+      </div>
+      <div class="summary-card" id="summaryContainer"></div>
+      <div class="range-table" id="rangeTableContainer"></div>
+      <div class="export-buttons">
+        <button class="export-stats-btn" id="exportStatsPdfBtn">📊 تصدير PDF</button>
+      </div>
+    </div>
+
+    <div class="tab-content" id="tab-data">
+      <div class="data-info" id="dataInfo"></div>
+      <div style="background-color:#2c2c2c;border-radius:12px;padding:14px;margin-bottom:10px;">
+        <h4 style="color:#FF9800;margin-bottom:10px;font-size:1rem;">⚠️ منطقة الخطر</h4>
+        <div class="export-buttons">
+          <button class="warning-btn" id="newSemesterBtn">📝 فصل جديد</button>
+          <button class="warning-btn" id="newYearBtn">📅 سنة جديدة</button>
+        </div>
+        <div class="export-buttons" style="margin-top:6px;">
+          <button class="danger-btn" id="deleteAllBtn">🗑️ حذف الكل</button>
+        </div>
+      </div>
+      <div style="background-color:#2c2c2c;border-radius:12px;padding:14px;">
+        <h4 style="color:#64B5F6;margin-bottom:10px;font-size:1rem;">💾 تصدير واستيراد</h4>
+        <div class="export-buttons">
+          <button class="export-pdf-btn" id="backupBtn">📥 نسخ احتياطي</button>
+          <button class="export-stats-btn" id="restoreBtn">📤 استعادة نسخة</button>
+        </div>
+        <input type="file" id="restoreFileInput" accept=".json" style="display:none;">
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="saveModal">
+    <div class="modal-content">
+      <h3>حفظ نتيجة الطالب</h3>
+      <p style="margin-bottom:12px;">النقطة: <strong id="modalScore">0.00</strong> / <span id="modalMax">20</span></p>
+      <div class="input-group">
+        <label>اسم الطالب</label>
+        <input type="text" id="studentNameInput" placeholder="أدخل الاسم" autocomplete="off">
+      </div>
+      <div class="modal-buttons">
+        <button class="btn-cancel" id="cancelSave">إلغاء</button>
+        <button class="btn-save" id="confirmSave">حفظ</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="confirmModal">
+    <div class="modal-content">
+      <h3 id="confirmTitle">تأكيد</h3>
+      <p id="confirmMessage">هل أنت متأكد؟</p>
+      <div class="modal-buttons">
+        <button class="btn-cancel" id="confirmCancel">إلغاء</button>
+        <button class="btn-danger" id="confirmOk">تأكيد</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ========== Service Worker Registration ==========
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('sw.js').catch(() => {});
+      });
+    }
+
+    (function() {
+      const $ = (id) => document.getElementById(id);
+      const tabButtons = document.querySelectorAll('.tab-nav button[data-tab]');
+      const tabContents = document.querySelectorAll('.tab-content');
+      const calcGrid = $('calcGrid');
+      const totalDisplay = $('totalDisplay');
+      const progressFill = $('progressFill');
+      const lastAddedDisplay = $('lastAddedDisplay');
+      const operationCountDisplay = $('operationCountDisplay');
+      const studentList = $('studentList');
+      const statsOverview = $('statsOverview');
+      const summaryContainer = $('summaryContainer');
+      const rangeTableContainer = $('rangeTableContainer');
+      const pdfPreviewArea = $('pdfPreviewArea');
+      const loadingOverlay = $('loadingOverlay');
+      const loadingText = $('loadingText');
+      const confirmModal = $('confirmModal');
+      const confirmTitle = $('confirmTitle');
+      const confirmMessage = $('confirmMessage');
+      const saveModal = $('saveModal');
+      const dataInfo = $('dataInfo');
+      
+      let barChartInstance = null;
+      let total = 0.0, history = [], operationCount = 0, confirmCallback = null, currentSort = 'date';
+      
+      const buttonValues = Array.from({length:20}, (_,i) => parseFloat((0.25 + i*0.25).toFixed(2)));
+      
+      let appData = {
+        settings: { teacherName:'', subject:'', institution:'', academicYear:'', semester:1, maxScore:20 },
+        students: []
+      };
+
+      function loadData() {
+        try {
+          const d = localStorage.getItem('exam_corrector_data');
+          if(d) { const p = JSON.parse(d); appData.settings = p.settings||appData.settings; appData.students = p.students||[]; }
+        } catch(e) {}
+      }
+
+      function saveData() {
+        try { localStorage.setItem('exam_corrector_data', JSON.stringify(appData)); } catch(e) {}
+      }
+
+      function showConfirm(title, msg, cb) {
+        confirmTitle.textContent = title;
+        confirmMessage.textContent = msg;
+        confirmCallback = cb;
+        confirmModal.classList.add('active');
+      }
+
+      $('confirmCancel').addEventListener('click', ()=>confirmModal.classList.remove('active'));
+      $('confirmOk').addEventListener('click', ()=>{
+        if(confirmCallback) confirmCallback();
+        confirmModal.classList.remove('active');
+      });
+
+      function updateDataInfo() {
+        const st = appData.settings.semester===1?'الأول':appData.settings.semester===2?'الثاني':'الثالث';
+        dataInfo.innerHTML = `<p>📚 <span>السنة:</span> ${appData.settings.academicYear||'غير محدد'}</p><p>📅 <span>الفصل:</span> ${st}</p><p>👥 <span>التلاميذ:</span> ${appData.students.length}</p><p>📐 <span>العلامة:</span> ${appData.settings.maxScore}</p>`;
+      }
+
+      // Calculator
+      function updateDisplay() {
+        totalDisplay.textContent = total.toFixed(2);
+        const max = appData.settings.maxScore;
+        let pct = max>0 ? (total/max)*100 : 0;
+        pct = Math.min(100, Math.max(0, pct));
+        progressFill.style.width = pct+'%';
+        progressFill.style.backgroundColor = pct>=85?'#4CAF50':pct>=70?'#2196F3':pct>=50?'#FF9800':'#F44336';
+        lastAddedDisplay.textContent = `آخر نقطة: ${history.length>0?history[history.length-1].toFixed(2):'--'}`;
+        operationCountDisplay.textContent = `العمليات: ${operationCount}`;
+      }
+
+      function addValue(v) { total+=v; history.push(v); operationCount++; updateDisplay(); if(navigator.vibrate) navigator.vibrate(20); }
+      function undo() { if(!history.length)return; total-=history.pop(); operationCount--; updateDisplay(); }
+      function resetCalculator() { total=0; history=[]; operationCount=0; updateDisplay(); }
+
+      calcGrid.innerHTML = '';
+      buttonValues.forEach(v => {
+        const b = document.createElement('button');
+        b.textContent = v.toFixed(2);
+        b.addEventListener('click', () => addValue(v));
+        calcGrid.appendChild(b);
+      });
+
+      $('undoBtn').addEventListener('click', undo);
+      $('resetBtn').addEventListener('click', resetCalculator);
+      
+      $('saveBtn').addEventListener('click', ()=>{
+        if(total<=0){alert('أضف نقاطاً أولاً.');return;}
+        $('modalScore').textContent=total.toFixed(2);
+        $('modalMax').textContent=appData.settings.maxScore;
+        $('studentNameInput').value='';
+        saveModal.classList.add('active');
+        setTimeout(()=>$('studentNameInput').focus(),100);
+      });
+      
+      $('cancelSave').addEventListener('click', ()=>saveModal.classList.remove('active'));
+      $('confirmSave').addEventListener('click', ()=>{
+        const n=$('studentNameInput').value.trim();
+        if(!n){alert('أدخل الاسم.');return;}
+        appData.students.push({id:Date.now().toString(),name:n,score:parseFloat(total.toFixed(2)),maxScore:appData.settings.maxScore,timestamp:new Date().toISOString()});
+        saveData();
+        resetCalculator();
+        saveModal.classList.remove('active');
+        renderStudentList();
+        updateDataInfo();
+      });
+
+      function sortStudents(mode){
+        currentSort=mode;
+        if(mode==='date') appData.students.sort((a,b)=>new Date(b.timestamp)-new Date(a.timestamp));
+        else if(mode==='score') appData.students.sort((a,b)=>b.score-a.score);
+        else appData.students.sort((a,b)=>a.name.localeCompare(b.name,'ar'));
+        renderStudentList();
+      }
+
+      function renderStudentList(){
+        studentList.innerHTML='';
+        if(!appData.students.length){
+          studentList.innerHTML='<div class="empty-state">لا يوجد طلاب محفوظون بعد.</div>';
+          return;
+        }
+        appData.students.forEach(s=>{
+          const d=new Date(s.timestamp);
+          const fd=d.toLocaleDateString('ar-SA',{year:'numeric',month:'numeric',day:'numeric'})+' '+d.toLocaleTimeString('ar-SA',{hour:'2-digit',minute:'2-digit'});
+          const c=document.createElement('div');
+          c.className='student-card';
+          c.innerHTML=`<div class="student-info"><span class="student-name">${s.name.replace(/&/g,'&amp;').replace(/</g,'&lt;')}</span><span class="student-date">${fd}</span></div><div style="display:flex;align-items:center;"><span class="student-score">${s.score.toFixed(2)} / ${s.maxScore}</span><button class="delete-btn" data-id="${s.id}">🗑️</button></div>`;
+          studentList.appendChild(c);
+        });
+        document.querySelectorAll('.delete-btn').forEach(b=>{
+          b.addEventListener('click',()=>{
+            appData.students=appData.students.filter(s=>s.id!==b.getAttribute('data-id'));
+            saveData();
+            renderStudentList();
+            updateDataInfo();
+            if($('tab-stats').classList.contains('active')) renderStats();
+          });
+        });
+      }
+
+      document.querySelectorAll('.sort-btns button').forEach(b=>b.addEventListener('click',()=>{
+        document.querySelectorAll('.sort-btns button').forEach(x=>x.classList.remove('active-sort'));
+        b.classList.add('active-sort');
+        sortStudents(b.getAttribute('data-sort'));
+      }));
+
+      function getEvaluation(ns){
+        if(ns<5)return'ضعيف'; if(ns<10)return'متوسط'; if(ns<15)return'جيد'; return'ممتاز';
+      }
+
+      function getStatsData(){
+        const c=appData.students.length;
+        if(!c)return{count:0,maxScore:0,minScore:0,average:0,aboveHalfPercent:0,excellent:0,good:0,averageCat:0,weak:0,range0_5:0,range5_10:0,range10_15:0,range15_20:0};
+        let mx=-Infinity,mn=Infinity,sum=0,ah=0,ex=0,gd=0,av=0,wk=0,r1=0,r2=0,r3=0,r4=0;
+        const fm=appData.settings.maxScore;
+        appData.students.forEach(s=>{
+          const ns=(s.score/s.maxScore)*fm;
+          if(ns>mx)mx=ns; if(ns<mn)mn=ns; sum+=ns;
+          if(ns>=fm/2)ah++;
+          const ev=getEvaluation(ns);
+          if(ev==='ممتاز')ex++; else if(ev==='جيد')gd++; else if(ev==='متوسط')av++; else wk++;
+          if(ns<5)r1++; else if(ns<10)r2++; else if(ns<15)r3++; else r4++;
+        });
+        return{count:c,maxScore:mx===-Infinity?0:mx,minScore:mn===Infinity?0:mn,average:sum/c,aboveHalfPercent:(ah/c)*100,excellent:ex,good:gd,averageCat:av,weak:wk,range0_5:r1,range5_10:r2,range10_15:r3,range15_20:r4};
+      }
+
+      function renderStats(){
+        const d=getStatsData(), fm=appData.settings.maxScore;
+        statsOverview.innerHTML=`
+          <div class="stat-box"><div class="stat-value">${d.count}</div><div class="stat-label">عدد التلاميذ</div></div>
+          <div class="stat-box"><div class="stat-value">${d.maxScore.toFixed(2)}</div><div class="stat-label">أعلى نقطة</div></div>
+          <div class="stat-box"><div class="stat-value">${d.minScore.toFixed(2)}</div><div class="stat-label">أصغر نقطة</div></div>
+          <div class="stat-box"><div class="stat-value">${d.average.toFixed(2)}</div><div class="stat-label">معدل القسم</div></div>
+          <div class="stat-box"><div class="stat-value">${d.aboveHalfPercent.toFixed(1)}%</div><div class="stat-label">نسبة فوق ${fm/2}</div></div>`;
+        const ctx=$('barChart').getContext('2d');
+        if(barChartInstance)barChartInstance.destroy();
+        barChartInstance=new Chart(ctx,{
+          type:'bar',
+          data:{labels:['ممتاز (15-20)','جيد (10-15)','متوسط (5-10)','ضعيف (0-5)'],datasets:[{data:[d.excellent,d.good,d.averageCat,d.weak],backgroundColor:['#4CAF50','#2196F3','#FF9800','#F44336'],borderRadius:6}]},
+          options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{color:'#ccc',stepSize:1},grid:{color:'#333'}},x:{ticks:{color:'#ccc'},grid:{display:false}}}}
+        });
+        summaryContainer.innerHTML=`
+          <div class="category-item"><div class="color-box" style="background:#4CAF50;"></div><span class="cat-label">ممتاز (15-20)</span><span class="cat-count">${d.excellent} (${d.count>0?((d.excellent/d.count)*100).toFixed(1):0}%)</span></div>
+          <div class="category-item"><div class="color-box" style="background:#2196F3;"></div><span class="cat-label">جيد (10-15)</span><span class="cat-count">${d.good} (${d.count>0?((d.good/d.count)*100).toFixed(1):0}%)</span></div>
+          <div class="category-item"><div class="color-box" style="background:#FF9800;"></div><span class="cat-label">متوسط (5-10)</span><span class="cat-count">${d.averageCat} (${d.count>0?((d.averageCat/d.count)*100).toFixed(1):0}%)</span></div>
+          <div class="category-item"><div class="color-box" style="background:#F44336;"></div><span class="cat-label">ضعيف (0-5)</span><span class="cat-count">${d.weak} (${d.count>0?((d.weak/d.count)*100).toFixed(1):0}%)</span></div>`;
+        rangeTableContainer.innerHTML=`
+          <h4 style="margin-bottom:8px;color:#64B5F6;">توزيع العلامات حسب المجالات</h4>
+          <table><thead><tr><th>المجال</th><th>العدد</th><th>النسبة</th></tr></thead><tbody>
+            <tr><td>0 - 5 (ضعيف)</td><td>${d.range0_5}</td><td>${d.count>0?((d.range0_5/d.count)*100).toFixed(1):0}%</td></tr>
+            <tr><td>5 - 10 (متوسط)</td><td>${d.range5_10}</td><td>${d.count>0?((d.range5_10/d.count)*100).toFixed(1):0}%</td></tr>
+            <tr><td>10 - 15 (جيد)</td><td>${d.range10_15}</td><td>${d.count>0?((d.range10_15/d.count)*100).toFixed(1):0}%</td></tr>
+            <tr><td>15 - ${fm} (ممتاز)</td><td>${d.range15_20}</td><td>${d.count>0?((d.range15_20/d.count)*100).toFixed(1):0}%</td></tr>
+          </tbody></table>`;
+      }
+
+      // PDF Export
+      function buildStudentsHTML() {
+        const fm=appData.settings.maxScore;
+        const st=appData.settings.semester===1?'الأول':appData.settings.semester===2?'الثاني':'الثالث';
+        let rows='';
+        appData.students.forEach(s=>{
+          const ns=(s.score/s.maxScore)*fm;
+          rows+=`<tr><td style="text-align:right;">${s.name.replace(/&/g,'&amp;').replace(/</g,'&lt;')}</td><td>${s.score.toFixed(2)}/${s.maxScore}</td><td>${getEvaluation(ns)}</td></tr>`;
+        });
+        return `<div class="header">${appData.settings.institution||'المؤسسة'}</div><div class="subheader">${appData.settings.academicYear||''}</div><div class="subheader">الأستاذ: ${appData.settings.teacherName||''} - المادة: ${appData.settings.subject||''}</div><div class="subheader">الفصل ${st}</div><div class="title">مناقشة نتائج اختبار المادة</div><table><thead><tr><th>الاسم</th><th>العلامة</th><th>التقييم</th></tr></thead><tbody>${rows}</tbody></table>`;
+      }
+
+      async function buildStatsHTML() {
+        const d=getStatsData(), fm=appData.settings.maxScore;
+        const st=appData.settings.semester===1?'الأول':appData.settings.semester===2?'الثاني':'الثالث';
+        const tc=document.createElement('canvas');
+        tc.width=600;tc.height=350;tc.style.display='none';
+        document.body.appendChild(tc);
+        const tchart=new Chart(tc,{type:'bar',data:{labels:['ممتاز (15-20)','جيد (10-15)','متوسط (5-10)','ضعيف (0-5)'],datasets:[{data:[d.excellent,d.good,d.averageCat,d.weak],backgroundColor:['#4CAF50','#2196F3','#FF9800','#F44336'],borderRadius:6}]},options:{responsive:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{stepSize:1,font:{size:14}}},x:{ticks:{font:{size:13}}}}}});
+        await new Promise(r=>setTimeout(r,300));
+        const ci=tc.toDataURL('image/png');
+        tchart.destroy();
+        document.body.removeChild(tc);
+        return `<div class="header">${appData.settings.institution||'المؤسسة'}</div><div class="subheader">${appData.settings.academicYear||''}</div><div class="subheader">الأستاذ: ${appData.settings.teacherName||''} - المادة: ${appData.settings.subject||''}</div><div class="subheader">الفصل ${st}</div><div class="title">مناقشة نتائج اختبار المادة</div><div class="section-title">ملخص الإحصائيات</div><table class="stats-table"><tr><td>عدد التلاميذ</td><td>${d.count}</td></tr><tr><td>أعلى نقطة</td><td>${d.maxScore.toFixed(2)} / ${fm}</td></tr><tr><td>أصغر نقطة</td><td>${d.minScore.toFixed(2)} / ${fm}</td></tr><tr><td>معدل القسم</td><td>${d.average.toFixed(2)} / ${fm}</td></tr><tr><td>نسبة فوق نصف العلامة</td><td>${d.aboveHalfPercent.toFixed(1)}%</td></tr></table><div class="section-title">المدرج التكراري للتقييم</div><div class="chart-img-container"><img src="${ci}" alt="المدرج التكراري" style="max-width:100%;height:auto;" /></div><div class="section-title">توزيع العلامات حسب المجالات</div><table><thead><tr><th>المجال</th><th>العدد</th><th>النسبة</th></tr></thead><tbody><tr><td>0 - 5 (ضعيف)</td><td>${d.range0_5}</td><td>${d.count>0?((d.range0_5/d.count)*100).toFixed(1):0}%</td></tr><tr><td>5 - 10 (متوسط)</td><td>${d.range5_10}</td><td>${d.count>0?((d.range5_10/d.count)*100).toFixed(1):0}%</td></tr><tr><td>10 - 15 (جيد)</td><td>${d.range10_15}</td><td>${d.count>0?((d.range10_15/d.count)*100).toFixed(1):0}%</td></tr><tr><td>15 - ${fm} (ممتاز)</td><td>${d.range15_20}</td><td>${d.count>0?((d.range15_20/d.count)*100).toFixed(1):0}%</td></tr></tbody></table>`;
+      }
+
+      async function exportToPDF(html, filename) {
+        loadingText.textContent='جاري إنشاء ملف PDF...';
+        loadingOverlay.classList.add('active');
+        try {
+          pdfPreviewArea.innerHTML=html;
+          pdfPreviewArea.style.right='0'; pdfPreviewArea.style.position='fixed'; pdfPreviewArea.style.zIndex='-1';
+          const imgs=pdfPreviewArea.querySelectorAll('img');
+          await Promise.all(Array.from(imgs).map(i=>new Promise(r=>{if(i.complete)r();else{i.onload=r;i.onerror=r;}})));
+          await new Promise(r=>setTimeout(r,500));
+          const canvas=await html2canvas(pdfPreviewArea,{scale:2,useCORS:true,backgroundColor:'#ffffff',logging:false});
+          pdfPreviewArea.style.right='-9999px'; pdfPreviewArea.style.position='absolute'; pdfPreviewArea.style.zIndex='';
+          const {jsPDF}=window.jspdf;
+          const doc=new jsPDF('p','mm','a4');
+          const pw=doc.internal.pageSize.getWidth(),ph=doc.internal.pageSize.getHeight();
+          const iw=pw-20,ih=(canvas.height*iw)/canvas.width;
+          let hl=ih,pos=10,page=1;
+          doc.addImage(canvas.toDataURL('image/png'),'PNG',10,pos,iw,ih);
+          hl-=(ph-20);
+          while(hl>0){pos=10-(page*(ph-20));doc.addPage();doc.addImage(canvas.toDataURL('image/png'),'PNG',10,pos,iw,ih);hl-=(ph-20);page++;}
+          doc.save(filename);
+        } catch(e){alert('خطأ: '+e.message);}
+        finally{pdfPreviewArea.innerHTML='';loadingOverlay.classList.remove('active');}
+      }
+
+      $('exportPdfBtn').addEventListener('click',async()=>{
+        if(!appData.students.length){alert('لا يوجد طلاب.');return;}
+        await exportToPDF(buildStudentsHTML(),'قائمة_التلاميذ.pdf');
+      });
+
+      $('exportStatsPdfBtn').addEventListener('click',async()=>{
+        if(!appData.students.length){alert('لا يوجد طلاب.');return;}
+        await exportToPDF(await buildStatsHTML(),'احصائيات_الاختبار.pdf');
+      });
+
+      // Settings
+      function applySettingsUI(){
+        $('teacherNameInput').value=appData.settings.teacherName||'';
+        $('subjectInput').value=appData.settings.subject||'';
+        $('institutionInput').value=appData.settings.institution||'';
+        $('academicYearInput').value=appData.settings.academicYear||'';
+        $('semesterSelect').value=appData.settings.semester||1;
+        $('maxScoreSlider').value=appData.settings.maxScore||20;
+        $('maxScoreValue').textContent=appData.settings.maxScore||20;
+      }
+
+      $('maxScoreSlider').addEventListener('input',()=>{$('maxScoreValue').textContent=$('maxScoreSlider').value;});
+      $('saveSettingsBtn').addEventListener('click',()=>{
+        appData.settings.teacherName=$('teacherNameInput').value.trim();
+        appData.settings.subject=$('subjectInput').value.trim();
+        appData.settings.institution=$('institutionInput').value.trim();
+        appData.settings.academicYear=$('academicYearInput').value.trim();
+        appData.settings.semester=parseInt($('semesterSelect').value)||1;
+        appData.settings.maxScore=parseInt($('maxScoreSlider').value)||20;
+        saveData();
+        $('modalMax').textContent=appData.settings.maxScore;
+        updateDisplay();
+        $('settingsPanel').classList.remove('show');
+        if($('tab-stats').classList.contains('active'))renderStats();
+        updateDataInfo();
+      });
+
+      $('settingsToggle').addEventListener('click',()=>$('settingsPanel').classList.toggle('show'));
+
+      // Data management
+      $('deleteAllBtn').addEventListener('click',()=>showConfirm('⚠️ حذف جميع البيانات','هل أنت متأكد؟',()=>{
+        appData.students=[]; saveData(); renderStudentList(); updateDataInfo();
+        if($('tab-stats').classList.contains('active'))renderStats();
+      }));
+
+      $('newSemesterBtn').addEventListener('click',()=>showConfirm('📝 فصل دراسي جديد','سيتم حذف التلاميذ. متابعة؟',()=>{
+        appData.students=[];
+        appData.settings.semester=appData.settings.semester>=3?1:appData.settings.semester+1;
+        $('semesterSelect').value=appData.settings.semester;
+        saveData(); applySettingsUI(); renderStudentList(); updateDataInfo();
+        if($('tab-stats').classList.contains('active'))renderStats();
+        alert('تم الانتقال إلى الفصل الجديد.');
+      }));
+
+      $('newYearBtn').addEventListener('click',()=>showConfirm('📅 سنة دراسية جديدة','سيتم حذف التلاميذ. متابعة؟',()=>{
+        appData.students=[];
+        const cy=new Date().getFullYear();
+        appData.settings.academicYear=`${cy}-${cy+1}`;
+        appData.settings.semester=1;
+        $('academicYearInput').value=appData.settings.academicYear;
+        $('semesterSelect').value=1;
+        saveData(); applySettingsUI(); renderStudentList(); updateDataInfo();
+        if($('tab-stats').classList.contains('active'))renderStats();
+        alert('تم بدء سنة دراسية جديدة.');
+      }));
+
+      $('backupBtn').addEventListener('click',()=>{
+        const blob=new Blob([JSON.stringify(appData,null,2)],{type:'application/json'});
+        const url=URL.createObjectURL(blob);
+        const a=document.createElement('a');
+        a.href=url; a.download=`نسخة_احتياطية_${new Date().toISOString().slice(0,10)}.json`;
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      });
+
+      $('restoreBtn').addEventListener('click',()=>$('restoreFileInput').click());
+      $('restoreFileInput').addEventListener('change',(e)=>{
+        const file=e.target.files[0];
+        if(file) showConfirm('📤 استعادة نسخة','سيتم استبدال البيانات. متابعة؟',()=>{
+          const reader=new FileReader();
+          reader.onload=function(e){
+            try{
+              const data=JSON.parse(e.target.result);
+              if(!data.settings||!Array.isArray(data.students))throw new Error('');
+              appData=data; saveData(); applySettingsUI(); renderStudentList(); updateDataInfo();
+              if($('tab-stats').classList.contains('active'))renderStats();
+              resetCalculator();
+              alert('تم استعادة البيانات بنجاح.');
+            }catch(err){alert('فشل استعادة البيانات.');}
+          };
+          reader.readAsText(file);
+        });
+        $('restoreFileInput').value='';
+      });
+
+      function switchTab(tabId){
+        tabContents.forEach(tc=>tc.classList.remove('active'));
+        $(`tab-${tabId}`).classList.add('active');
+        tabButtons.forEach(b=>b.classList.remove('active'));
+        const btn=document.querySelector(`.tab-nav button[data-tab="${tabId}"]`);
+        if(btn)btn.classList.add('active');
+        if(tabId==='students')sortStudents(currentSort);
+        else if(tabId==='stats')renderStats();
+        else if(tabId==='data')updateDataInfo();
+      }
+
+      tabButtons.forEach(btn=>btn.addEventListener('click',()=>switchTab(btn.getAttribute('data-tab'))));
+
+      loadData();
+      applySettingsUI();
+      updateDisplay();
+      sortStudents('date');
+      renderStudentList();
+      updateDataInfo();
+    })();
+  </script>
+</body>
+</html>
